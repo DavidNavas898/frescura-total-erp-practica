@@ -6,7 +6,10 @@ import com.frescuratotal.erp.inventory.model.LotDao;
 import com.frescuratotal.erp.inventory.model.Product;
 import com.frescuratotal.erp.inventory.model.ProductDao;
 import com.frescuratotal.erp.sales.model.Customer;
+import com.frescuratotal.erp.sales.model.CustomerCache;
 import com.frescuratotal.erp.sales.model.CustomerDao;
+import com.frescuratotal.erp.sales.model.DeliveryCalculator;
+import com.frescuratotal.erp.sales.model.SalesRecord;
 import com.frescuratotal.erp.sales.model.Invoice;
 import com.frescuratotal.erp.sales.model.InvoiceDao;
 import com.frescuratotal.erp.sales.model.Sale;
@@ -23,12 +26,16 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HexFormat;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 
 public class SaleController {
 
     private static final double DESCUENTO_PROXIMO_A_VENCER = 0.50;
     private static final double TASA_IVA = 0.19;
+    private static final String ESTADO_CONFIRMADA = "Entregada";
+    private static final String ESTADO_DEVUELTA = "Cancelada";
 
     private SaleDao saleDao;
     private SaleView saleView;
@@ -77,12 +84,11 @@ public class SaleController {
             saleView.mostrarClientes(clientes);
             int idCliente = saleView.pedirIdCliente();
 
-            Customer clienteElegido = null;
-            for (Customer cliente : clientes) {
-                if (cliente.getIdCliente() == idCliente) {
-                    clienteElegido = cliente;
-                }
+            CustomerCache cache = CustomerCache.getInstance();
+            if (cache.estaEnCache(idCliente)) {
+                saleView.mostrarMensaje("(Cliente obtenido de la cache, sin consultar la base de datos)");
             }
+            Customer clienteElegido = cache.obtenerCliente(idCliente);
             if (clienteElegido == null) {
                 saleView.mostrarMensaje("El cliente no existe. Venta cancelada.");
                 return;
@@ -107,6 +113,13 @@ public class SaleController {
             }
 
             calcularTotales(venta);
+
+            String modalidad = saleView.pedirModalidadEntrega();
+            DeliveryCalculator calculadora = new DeliveryCalculator();
+            double totalConEntrega = calculadora.calcularTotalConEntrega(venta, modalidad);
+            saleView.mostrarMensaje("Entrega " + modalidad + ": total " + venta.getMontoTotal() + " -> " + totalConEntrega);
+            venta.setMontoTotal(totalConEntrega);
+
             saleView.mostrarResumen(venta);
 
             if (!saleView.confirmar("Confirmar la venta?")) {
@@ -183,6 +196,45 @@ public class SaleController {
             saleView.mostrarMensaje("Venta enviada a preparacion. Ya aparece en el panel de despachos de logistica.");
         } catch (SQLException e) {
             saleView.mostrarMensaje("Error al enviar la venta a preparacion: " + e.getMessage());
+        }
+    }
+
+    public void generarEstadisticas() {
+        try {
+            List<SalesRecord> registros = saleDao.obtenerRegistrosComerciales();
+
+            if (registros.isEmpty()) {
+                saleView.mostrarMensaje("No existen datos suficientes para generar estadísticas comerciales.");
+                return;
+            }
+
+            Map<String, Double> unidadesPorCategoria = registros.stream()
+                    .filter(registro -> registro.getEstadoVenta().equals(ESTADO_CONFIRMADA))
+                    .collect(Collectors.groupingBy(
+                            registro -> registro.getNombreCategoria(),
+                            Collectors.summingDouble(registro -> registro.getCantidad())
+                    ));
+
+            String categoriaMayor = unidadesPorCategoria.entrySet().stream()
+                    .max(Map.Entry.comparingByValue())
+                    .map(entrada -> entrada.getKey())
+                    .orElse("Sin ventas confirmadas");
+
+            double unidades = 0;
+            if (unidadesPorCategoria.containsKey(categoriaMayor)) {
+                unidades = unidadesPorCategoria.get(categoriaMayor);
+            }
+
+            List<String> clientesConDevoluciones = registros.stream()
+                    .filter(registro -> registro.getEstadoVenta().equals(ESTADO_DEVUELTA))
+                    .map(registro -> registro.getNombreCliente())
+                    .distinct()
+                    .sorted()
+                    .collect(Collectors.toList());
+
+            saleView.mostrarEstadisticas(categoriaMayor, unidades, clientesConDevoluciones);
+        } catch (SQLException e) {
+            saleView.mostrarMensaje("Error al generar las estadisticas: " + e.getMessage());
         }
     }
 

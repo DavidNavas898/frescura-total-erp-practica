@@ -108,6 +108,33 @@ public class SaleDao {
         return ventas;
     }
 
+    public List<SalesRecord> obtenerRegistrosComerciales() throws SQLException {
+        List<SalesRecord> registros = new ArrayList<>();
+        String sql = "SELECT v.id_venta, d.cantidad_vendida, cat.nombre AS nombre_categoria, "
+                + "c.nombre AS nombre_cliente, e.nombre AS estado_venta "
+                + "FROM ventas v "
+                + "JOIN detalles_venta d ON d.id_venta = v.id_venta "
+                + "JOIN lotes_inventario l ON d.id_lote = l.id_lote "
+                + "JOIN productos p ON l.id_producto = p.id_producto "
+                + "JOIN categorias_producto cat ON p.id_categoria = cat.id_categoria "
+                + "JOIN clientes c ON v.id_cliente = c.id_cliente "
+                + "JOIN estados_venta e ON v.id_estado = e.id_estado";
+        try (Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql);
+                ResultSet rs = stmt.executeQuery()) {
+            while (rs.next()) {
+                SalesRecord registro = new SalesRecord();
+                registro.setIdVenta(rs.getInt("id_venta"));
+                registro.setCantidad(rs.getDouble("cantidad_vendida"));
+                registro.setNombreCategoria(rs.getString("nombre_categoria"));
+                registro.setNombreCliente(rs.getString("nombre_cliente"));
+                registro.setEstadoVenta(rs.getString("estado_venta"));
+                registros.add(registro);
+            }
+        }
+        return registros;
+    }
+
     public void cambiarEstado(int idVenta, int idEstado) throws SQLException {
         String sql = "UPDATE ventas SET id_estado = ? WHERE id_venta = ?";
         try (Connection conn = DatabaseConnection.getConnection();

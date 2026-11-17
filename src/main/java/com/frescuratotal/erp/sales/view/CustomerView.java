@@ -17,8 +17,24 @@ public class CustomerView {
         System.out.println("--- MENU DE CLIENTES ---");
         System.out.println("1. Listar clientes");
         System.out.println("2. Registrar cliente");
+        System.out.println("3. Buscar cliente por ID");
+        System.out.println("4. Importar Clientes desde Archivo");
         System.out.println("0. Volver al menu principal");
         return leerNumero("Seleccione una opcion: ");
+    }
+
+    public int pedirIdCliente() {
+        System.out.println();
+        return leerNumero("ID del cliente: ");
+    }
+
+    public void mostrarCliente(Customer cliente) {
+        System.out.println("ID: " + cliente.getIdCliente()
+                + " | Nombre: " + cliente.getNombre()
+                + " | Documento: " + cliente.getDocumento()
+                + " | Tipo: " + cliente.getNombreTipo()
+                + " | Telefono: " + cliente.getTelefono()
+                + " | Email: " + cliente.getEmail());
     }
 
     public void mostrarClientes(List<Customer> clientes) {

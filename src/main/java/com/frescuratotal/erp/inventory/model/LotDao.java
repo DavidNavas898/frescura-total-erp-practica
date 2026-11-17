@@ -4,8 +4,11 @@ import java.sql.Connection;
 import java.sql.PreparedStatement;
 import java.sql.ResultSet;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
+
+import javax.xml.crypto.Data;
 
 import com.frescuratotal.erp.common.DatabaseConnection;
 
@@ -217,6 +220,59 @@ public class LotDao {
                 lote.setNombreProducto(rs.getString("nombre_producto"));
                 lote.setNombreProveedor(rs.getString("nombre_proveedor"));
                 lote.setNombreEstado(rs.getString("nombre_estado"));
+                lotes.add(lote);
+            }
+        }
+        return lotes;
+    }
+
+    public List<Lot> obtenerComprasDelDia(LocalDate fecha) throws SQLException {
+        List<Lot> compras = new ArrayList<>();
+        String sql = "SELECT l.id_lote, l.cantidad_inicial, l.precio_compra, p.nombre AS nombre_proveedor "
+                + "FROM lotes_inventario l "
+                + "JOIN proveedores p ON l.id_proveedor = p.id_proveedor "
+                + "WHERE DATE(l.fecha_ingreso) = ? "
+                + "ORDER BY l.id_lote";
+        try (Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql)) {
+            stmt.setDate(1, java.sql.Date.valueOf(fecha));
+            try (ResultSet rs = stmt.executeQuery()) {
+                while (rs.next()) {
+                    Lot lote = new Lot();
+                    lote.setIdLote(rs.getInt("id_lote"));
+                    lote.setCantidadInicial(rs.getDouble("cantidad_inicial"));
+                    lote.setPrecioCompra(rs.getDouble("precio_compra"));
+                    lote.setNombreProveedor(rs.getString("nombre_proveedor"));
+                    compras.add(lote);
+                }
+            }
+        }
+        return compras;
+    }
+
+    // ------------------------------------------------------------------
+
+    public List<Lot> obtenerLotesConProveedor() throws SQLException{
+        List<Lot> lotes = new ArrayList<>();
+        String sql = "SELECT \n" + //
+                        "    l.id_lote,\n" + //
+                        "    l.cantidad_inicial,\n" + //
+                        "    e.nombre AS estado_lote,\n" + //
+                        "    p.id_proveedor,\n" + //
+                        "    p.nombre AS nombre_proveedor\n" + //
+                        "FROM lotes_inventario l\n" + //
+                        "INNER JOIN proveedores p ON l.id_proveedor = p.id_proveedor\n" + //
+                        "INNER JOIN estados_lote e ON l.id_estado = e.id_estado";
+        try (Connection conn = DatabaseConnection.getConnection();
+                PreparedStatement stmt = conn.prepareStatement(sql);
+                ResultSet rs = stmt.executeQuery()){
+            while (rs.next()) {
+                Lot lote = new Lot();
+                lote.setIdLote(rs.getInt("id_lote"));
+                lote.setCantidadInicial(rs.getDouble("cantidad_inicial"));
+                lote.setNombreEstado(rs.getString("estado_lote"));
+                lote.setIdProveedor(rs.getInt("id_proveedor"));
+                lote.setNombreProveedor(rs.getString("nombre_proveedor"));
                 lotes.add(lote);
             }
         }

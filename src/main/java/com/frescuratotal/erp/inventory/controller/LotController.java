@@ -12,15 +12,20 @@ import com.frescuratotal.erp.inventory.model.InspectionDao;
 import com.frescuratotal.erp.inventory.model.Waste;
 import com.frescuratotal.erp.inventory.model.WasteDao;
 import com.frescuratotal.erp.inventory.view.LotView;
+import com.frescuratotal.erp.inventory.view.PurchaseCsv;
 import com.frescuratotal.erp.sales.model.Customer;
 import com.frescuratotal.erp.sales.model.CustomerDao;
 import com.frescuratotal.erp.suppliers.model.Supplier;
 import com.frescuratotal.erp.suppliers.model.SupplierDao;
 
+import java.io.IOException;
 import java.sql.SQLException;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Map;
+import java.util.stream.Collectors;
 
 public class LotController {
 
@@ -243,6 +248,61 @@ public class LotController {
         }
     }
 
+    // ------------------------------------------------------------------
+
+    public void generarReporte(){
+        try{
+            List<Lot> lotes = lotDao.obtenerLotesConProveedor();
+
+            if(lotes.isEmpty()){
+                lotView.mostrarMensaje("No hay datos de inventario suficientes para generar estadisticas.");
+                return;
+            }
+
+            Map<String, Double> volumenPorProveedor = lotes.stream()
+            .collect(Collectors.groupingBy(
+                lote -> lote.getNombreProveedor(),
+                Collectors.summingDouble(lote -> lote.getCantidadInicial())
+            ));
+
+            String proveedorMayor = volumenPorProveedor.entrySet().stream()
+                    .max(Map.Entry.comparingByValue())
+                    .map(entrada -> entrada.getKey())
+                    .orElse("Sin datos");
+
+            List<String> proveedoresVencidos = lotes.stream()
+                    .filter(lote -> lote.getNombreEstado().equals("Vencido"))
+                    .map(lote -> lote.getNombreProveedor())
+                    .distinct()
+                    .sorted()
+                    .collect(Collectors.toList());
+            lotView.mostrarReporte(proveedorMayor, proveedoresVencidos);
+        } catch (SQLException e) {
+            lotView.mostrarMensaje("Error al generar el reporte: " + e.getMessage());
+        }
+    }
+
+    public void generarReporteCompras() {
+        LocalDate hoy = LocalDate.now();
+        try {
+            List<Lot> compras = lotDao.obtenerComprasDelDia(hoy);
+
+            PurchaseCsv purchaseCsv = new PurchaseCsv();
+            String archivo = purchaseCsv.generarCsv(compras, hoy);
+
+            if (compras.isEmpty()) {
+                lotView.mostrarMensaje("No hay compras realizadas hoy. Se genero el archivo " + archivo + " solo con la cabecera.");
+            } else {
+                lotView.mostrarMensaje("Reporte generado: " + archivo + " con " + compras.size() + " compras.");
+            }
+            LogManager.registrar("INFO", "Reporte diario de compras generado: " + archivo);
+        } catch (SQLException e) {
+            lotView.mostrarMensaje("Error al consultar las compras: " + e.getMessage());
+        } catch (IOException e) {
+            lotView.mostrarMensaje("Error al escribir el archivo CSV: " + e.getMessage());
+            LogManager.registrar("ERROR", "Error al generar el CSV de compras: " + e.getMessage());
+        }
+    }
     
 
 }

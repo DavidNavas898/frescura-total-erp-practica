@@ -181,6 +181,23 @@ public class LotView {
         System.out.println(mensaje);
     }
 
+    // ------------------------------------------------------------------
+
+    public void mostrarReporte(String proveedorMayor, List<String> proveedoresVencidos) {
+        System.out.println();
+        System.out.println("* Reporte de Rendimiento de Proveedores *");
+        System.out.println();
+        System.out.println(">> Proveedor con Mayor Volumen de Suministro:");
+        System.out.println(proveedorMayor);
+        System.out.println();
+        System.out.println(">> Proveedores con Lotes Vencidos Registrados:");
+        if (proveedoresVencidos.isEmpty()) {
+            System.out.println("Ningun proveedor tiene lotes vencidos.");
+        } else {
+            proveedoresVencidos.forEach(nombre -> System.out.println("- " + nombre));
+        }
+    }
+
     private int leerNumero(String mensaje) {
         while (true) {
             System.out.print(mensaje);

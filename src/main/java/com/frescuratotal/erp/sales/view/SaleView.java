@@ -116,6 +116,30 @@ public class SaleView {
         System.out.println("TOTAL A PAGAR: " + venta.getMontoTotal());
     }
 
+    public String pedirModalidadEntrega() {
+        System.out.println();
+        System.out.println("Modalidad de entrega:");
+        System.out.println("1. ESTANDAR (sin recargo)");
+        System.out.println("2. URGENTE (recargo del 12%)");
+        int opcion = leerNumero("Seleccione la modalidad: ");
+        while (opcion != 1 && opcion != 2) {
+            System.out.println("Opcion invalida. Debe ser 1 o 2.");
+            opcion = leerNumero("Seleccione la modalidad: ");
+        }
+        if (opcion == 2) {
+            return "URGENTE";
+        }
+        return "ESTANDAR";
+    }
+
+    public void mostrarEstadisticas(String categoria, double unidades, List<String> clientesConDevoluciones) {
+        System.out.println();
+        System.out.println("===== ESTADISTICAS COMERCIALES =====");
+        System.out.println("Categoria con mayor volumen vendido: " + categoria + " - " + unidades + " unidades");
+        System.out.println("Clientes con devoluciones:");
+        clientesConDevoluciones.forEach(nombre -> System.out.println("- " + nombre));
+    }
+
     public boolean confirmar(String mensaje) {
         System.out.print(mensaje + " (s/n): ");
         String respuesta = scanner.nextLine();
