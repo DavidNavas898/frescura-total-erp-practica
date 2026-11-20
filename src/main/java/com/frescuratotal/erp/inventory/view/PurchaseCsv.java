@@ -6,6 +6,7 @@ import java.io.IOException;
 import java.time.LocalDate;
 import java.util.List;
 
+// Esto pertenece al punto 2 del taller de practica
 public class PurchaseCsv {
 
     public String generarCsv(List<Lot> compras, LocalDate fecha) throws IOException {

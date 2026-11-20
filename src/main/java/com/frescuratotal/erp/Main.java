@@ -72,9 +72,11 @@ public class Main {
                 case 7:
                     lotController.generarReporte();
                     break;
+                // Esto pertenece al punto 2 del taller de practica
                 case 8:
                     lotController.generarReporteCompras();
                     break;
+                // Esto pertenece al punto 5 del taller de practica
                 case 9:
                     saleController.generarEstadisticas();
                     break;

@@ -108,6 +108,7 @@ public class SaleDao {
         return ventas;
     }
 
+    // Esto pertenece al punto 5 del taller de practica
     public List<SalesRecord> obtenerRegistrosComerciales() throws SQLException {
         List<SalesRecord> registros = new ArrayList<>();
         String sql = "SELECT v.id_venta, d.cantidad_vendida, cat.nombre AS nombre_categoria, "

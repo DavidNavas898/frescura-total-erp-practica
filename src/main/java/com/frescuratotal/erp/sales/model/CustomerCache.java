@@ -4,6 +4,7 @@ import java.sql.SQLException;
 import java.util.HashMap;
 import java.util.Map;
 
+// Esto pertenece al punto 1 del taller de practica
 public class CustomerCache {
 
     private static CustomerCache instancia;

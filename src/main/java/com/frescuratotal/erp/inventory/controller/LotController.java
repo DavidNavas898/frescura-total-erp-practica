@@ -282,6 +282,7 @@ public class LotController {
         }
     }
 
+    // Esto pertenece al punto 2 del taller de practica
     public void generarReporteCompras() {
         LocalDate hoy = LocalDate.now();
         try {

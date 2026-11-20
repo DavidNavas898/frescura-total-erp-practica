@@ -1,5 +1,6 @@
 package com.frescuratotal.erp.sales.model;
 
+// Esto pertenece al punto 5 del taller de practica
 public class SalesRecord {
 
     private int idVenta;

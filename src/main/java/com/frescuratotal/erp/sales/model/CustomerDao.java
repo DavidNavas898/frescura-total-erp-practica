@@ -51,6 +51,7 @@ public class CustomerDao {
         }
     }
 
+    // Esto pertenece al punto 1 del taller de practica
     public Customer obtenerClientePorId(int idCliente) throws SQLException {
         String sql = "SELECT c.*, t.nombre AS nombre_tipo "
                 + "FROM clientes c "
@@ -79,6 +80,7 @@ public class CustomerDao {
         return null;
     }
 
+    // Esto pertenece al punto 4 del taller de practica
     public boolean existeDocumento(String documento) throws SQLException {
         String sql = "SELECT id_cliente FROM clientes WHERE documento = ?";
         try (Connection conn = DatabaseConnection.getConnection();

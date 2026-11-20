@@ -116,6 +116,7 @@ public class SaleView {
         System.out.println("TOTAL A PAGAR: " + venta.getMontoTotal());
     }
 
+    // Esto pertenece al punto 3 del taller de practica
     public String pedirModalidadEntrega() {
         System.out.println();
         System.out.println("Modalidad de entrega:");
@@ -132,6 +133,7 @@ public class SaleView {
         return "ESTANDAR";
     }
 
+    // Esto pertenece al punto 5 del taller de practica
     public void mostrarEstadisticas(String categoria, double unidades, List<String> clientesConDevoluciones) {
         System.out.println();
         System.out.println("===== ESTADISTICAS COMERCIALES =====");

@@ -34,6 +34,7 @@ public class SaleController {
 
     private static final double DESCUENTO_PROXIMO_A_VENCER = 0.50;
     private static final double TASA_IVA = 0.19;
+    // Esto pertenece al punto 5 del taller de practica
     private static final String ESTADO_CONFIRMADA = "Entregada";
     private static final String ESTADO_DEVUELTA = "Cancelada";
 
@@ -84,6 +85,7 @@ public class SaleController {
             saleView.mostrarClientes(clientes);
             int idCliente = saleView.pedirIdCliente();
 
+            // Esto pertenece al punto 1 del taller de practica
             CustomerCache cache = CustomerCache.getInstance();
             if (cache.estaEnCache(idCliente)) {
                 saleView.mostrarMensaje("(Cliente obtenido de la cache, sin consultar la base de datos)");
@@ -114,6 +116,7 @@ public class SaleController {
 
             calcularTotales(venta);
 
+            // Esto pertenece al punto 3 del taller de practica
             String modalidad = saleView.pedirModalidadEntrega();
             DeliveryCalculator calculadora = new DeliveryCalculator();
             double totalConEntrega = calculadora.calcularTotalConEntrega(venta, modalidad);
@@ -199,6 +202,7 @@ public class SaleController {
         }
     }
 
+    // Esto pertenece al punto 5 del taller de practica
     public void generarEstadisticas() {
         try {
             List<SalesRecord> registros = saleDao.obtenerRegistrosComerciales();

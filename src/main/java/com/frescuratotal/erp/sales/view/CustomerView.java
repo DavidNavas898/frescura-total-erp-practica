@@ -23,6 +23,7 @@ public class CustomerView {
         return leerNumero("Seleccione una opcion: ");
     }
 
+    // Esto pertenece al punto 1 del taller de practica
     public int pedirIdCliente() {
         System.out.println();
         return leerNumero("ID del cliente: ");

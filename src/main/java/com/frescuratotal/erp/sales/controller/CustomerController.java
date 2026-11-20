@@ -76,6 +76,7 @@ public class CustomerController {
         }
     }
 
+    // Esto pertenece al punto 1 del taller de practica
     private void buscarClientePorId() {
         int idCliente = customerView.pedirIdCliente();
         CustomerCache cache = CustomerCache.getInstance();
@@ -97,6 +98,7 @@ public class CustomerController {
         }
     }
 
+    // Esto pertenece al punto 4 del taller de practica
     private void importarClientes() {
         File archivo = new File("clientes_importar.txt");
         if (!archivo.exists()) {

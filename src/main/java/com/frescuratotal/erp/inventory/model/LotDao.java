@@ -226,6 +226,7 @@ public class LotDao {
         return lotes;
     }
 
+    // Esto pertenece al punto 2 del taller de practica
     public List<Lot> obtenerComprasDelDia(LocalDate fecha) throws SQLException {
         List<Lot> compras = new ArrayList<>();
         String sql = "SELECT l.id_lote, l.cantidad_inicial, l.precio_compra, p.nombre AS nombre_proveedor "
