@@ -217,3 +217,224 @@ return venta.getDetalles().stream()
         .mapToDouble(detalle -> detalle.getCantidadVendida())
         .sum();
 ```
+
+## Taller de práctica: 5 ejercicios
+Este repositorio incluye los cinco ejercicios preparatorios de la guía de práctica. En el
+código, cada parte está marcada con un comentario `// Esto pertenece al punto X del taller de practica`.
+
+| Punto | Tema | Dónde se usa |
+|---|---|---|
+| 1 | Caché de clientes (Singleton) | Clientes → 3. Buscar cliente por ID, y al elegir el cliente en una venta nueva |
+| 2 | Reporte diario de compras en CSV | Menú principal → 8 |
+| 3 | Tarifas de entrega (Strategy) | Ventas → Nueva venta (pregunta la modalidad antes del resumen) |
+| 4 | Importar clientes desde archivo | Clientes → 4. Importar Clientes desde Archivo |
+| 5 | Estadísticas comerciales (Stream API) | Menú principal → 9 |
+
+Adaptaciones a la base de datos del proyecto:
+- **Punto 2:** no existe una tabla `compras`; cada **lote** recibido es una compra al proveedor, con
+  monto = `precio_compra × cantidad_inicial`.
+- **Punto 5:** los estados CONFIRMADA y DEVUELTA se representan con **Entregada** y **Cancelada**,
+  que son los estados de la tabla `estados_venta`.
+
+### Punto 1: Caché de clientes (Singleton)
+`sales/model/CustomerCache.java`
+```java
+public class CustomerCache {
+
+    private static CustomerCache instancia;        // 1. aquí se guarda la ÚNICA caché que existirá
+
+    private Map<Integer, Customer> clientes;       // 2. la "libreta": ID del cliente -> datos del cliente
+    private CustomerDao customerDao;
+
+    private CustomerCache() {                       // 3. constructor PRIVADO: nadie puede hacer new CustomerCache()
+        clientes = new HashMap<>();
+        customerDao = new CustomerDao();
+    }
+
+    public static CustomerCache getInstance() {     // 4. la única forma de obtener la caché
+        if (instancia == null) {
+            instancia = new CustomerCache();        //    la primera vez se crea
+        }
+        return instancia;                           //    las demás veces se devuelve la misma
+    }
+
+    public Customer obtenerCliente(int idCliente) throws SQLException {
+        if (clientes.containsKey(idCliente)) {      // 5. ¿ya está en la libreta?
+            return clientes.get(idCliente);         //    sí -> se devuelve SIN ir a MySQL
+        }
+        Customer cliente = customerDao.obtenerClientePorId(idCliente);  // 6. no -> se consulta MySQL
+        if (cliente != null) {
+            clientes.put(idCliente, cliente);       // 7. se anota (los nulos NO se guardan)
+        }
+        return cliente;
+    }
+}
+```
+Así se usa, igual en `CustomerController` y en `SaleController`:
+```java
+CustomerCache cache = CustomerCache.getInstance();   // los dos reciben la MISMA caché
+Customer cliente = cache.obtenerCliente(idCliente);
+```
+
+### Punto 2: Reporte diario de compras en CSV
+`LotController.generarReporteCompras()`
+```java
+LocalDate hoy = LocalDate.now();                           // 1. fecha de hoy, sin preguntarle al usuario
+List<Lot> compras = lotDao.obtenerComprasDelDia(hoy);      // 2. lotes que entraron hoy
+
+PurchaseCsv purchaseCsv = new PurchaseCsv();
+String archivo = purchaseCsv.generarCsv(compras, hoy);     // 3. se escribe el archivo
+
+if (compras.isEmpty()) {                                   // 4. día sin compras: el archivo queda solo con la cabecera
+    lotView.mostrarMensaje("No hay compras realizadas hoy...");
+}
+```
+Consulta en `LotDao.obtenerComprasDelDia()`:
+```sql
+SELECT l.id_lote, l.cantidad_inicial, l.precio_compra, p.nombre AS nombre_proveedor
+FROM lotes_inventario l
+JOIN proveedores p ON l.id_proveedor = p.id_proveedor
+WHERE DATE(l.fecha_ingreso) = ?        -- solo las de hoy
+```
+`PurchaseCsv.generarCsv()`
+```java
+String nombreArchivo = "compras_" + fecha + ".csv";        // compras_2026-11-20.csv
+
+FileWriter writer = new FileWriter(nombreArchivo);
+writer.write("NumeroCompra;NombreProveedor;MontoTotal\n"); // cabecera exacta
+for (Lot compra : compras) {
+    double monto = compra.getPrecioCompra() * compra.getCantidadInicial();
+    writer.write(compra.getIdLote() + ";" + compra.getNombreProveedor() + ";" + formatearMonto(monto) + "\n");
+}
+writer.close();
+```
+Ejemplo de archivo generado (compras del 14/09/2026):
+```
+NumeroCompra;NombreProveedor;MontoTotal
+32;Comercializadora Santander Ltda.;588000.00
+40;Comercializadora Santander Ltda.;282000.00
+```
+
+### Punto 3: Tarifas de entrega (Strategy)
+El contrato y las dos estrategias:
+```java
+public interface DeliveryStrategy {                 // 1. el contrato: toda entrega sabe calcular su total
+    double calcularTotal(double valorCompra);
+}
+
+public class StandardDelivery implements DeliveryStrategy {
+    private static final double RECARGO = 0.0;      // 2. estándar: 0 %
+    public double calcularTotal(double valorCompra) {
+        return Math.round((valorCompra + valorCompra * RECARGO) * 100) / 100.0;
+    }
+}
+
+public class UrgentDelivery implements DeliveryStrategy {
+    private static final double RECARGO = 0.12;     // 3. urgente: 12 %, SOLO aquí
+    public double calcularTotal(double valorCompra) {
+        return Math.round((valorCompra + valorCompra * RECARGO) * 100) / 100.0;
+    }
+}
+```
+`DeliveryCalculator`: el `if` solo **elige** la estrategia, no calcula.
+```java
+DeliveryStrategy estrategia;
+if (modalidad.equals("URGENTE")) {
+    estrategia = new UrgentDelivery();
+} else {
+    estrategia = new StandardDelivery();
+}
+return estrategia.calcularTotal(venta.getMontoTotal());   // 4. polimorfismo: cada una calcula a su manera
+```
+En `SaleController.nuevaVenta()`, antes del resumen:
+```java
+String modalidad = saleView.pedirModalidadEntrega();                        // pregunta 1. ESTANDAR / 2. URGENTE
+double totalConEntrega = calculadora.calcularTotalConEntrega(venta, modalidad);
+venta.setMontoTotal(totalConEntrega);                                      // ej: 5593.0 -> 6264.16
+```
+Casos de prueba: 100000 ESTANDAR → 100000 · 100000 URGENTE → 112000 · 250000 URGENTE → 280000 ·
+50000 ESTANDAR → 50000 · 0 URGENTE → 0.
+
+### Punto 4: Importar clientes desde archivo
+`CustomerController.importarClientes()` (resumido; las validaciones completas están en el código):
+```java
+File archivo = new File("clientes_importar.txt");
+if (!archivo.exists()) {                                        // 1. ¿existe el archivo?
+    mostrarMensaje("Error: No se encontró el archivo clientes_importar.txt.");
+    return;
+}
+
+BufferedReader lector = new BufferedReader(new FileReader(archivo));
+String cabecera = lector.readLine();
+if (!cabecera.equals("nombre;documento;correo;telefono;tipo_cliente")) {   // 2. cabecera exacta
+    hayErrores = true;
+}
+
+while (linea != null && !hayErrores) {
+    if (!linea.trim().isEmpty()) {                              // 3. las líneas vacías se saltan
+        String[] campos = linea.split(";", -1);
+        if (campos.length != 5) ...                              // 4. exactamente 5 campos
+        else if (campo vacío) ...                                //    ninguno vacío
+        else if (!esCorreoValido(correo)) ...                    //    correo con @ y punto
+        else if (!tipo.equals("MAYORISTA") && !tipo.equals("MINORISTA")) ...
+        else if (documentosDelArchivo.contains(documento)) ...   //    repetido en el archivo
+        else if (customerDao.existeDocumento(documento)) ...     //    ya existe en MySQL
+        else clientesNuevos.add(cliente);                        // 5. válido -> a la lista (todavía NO se guarda)
+    }
+    linea = lector.readLine();
+}
+
+if (hayErrores) {                                               // 6. un solo error cancela todo
+    mostrarMensaje("Error: Se encontraron registros inválidos. Importación cancelada.");
+    return;
+}
+int total = customerDao.registrarClientes(clientesNuevos);      // 7. se guardan todos juntos
+```
+`CustomerDao.registrarClientes()`: transacción de "todo o nada".
+```java
+conn.setAutoCommit(false);          // no guardar todavía
+for (Customer cliente : clientes) {
+    ... INSERT ...
+}
+conn.commit();                      // todo salió bien -> se guarda todo
+// si algo falla:
+conn.rollback();                    // se deshace todo, no quedan registros a medias
+```
+
+### Punto 5: Estadísticas comerciales (Stream API)
+`SaleController.generarEstadisticas()`
+```java
+List<SalesRecord> registros = saleDao.obtenerRegistrosComerciales();   // 1. JOIN -> objetos SalesRecord
+
+if (registros.isEmpty()) {                                             // 2. caso vacío
+    mostrarMensaje("No existen datos suficientes para generar estadísticas comerciales.");
+    return;
+}
+
+// 3. Categoría con más unidades vendidas
+Map<String, Double> unidadesPorCategoria = registros.stream()
+        .filter(registro -> registro.getEstadoVenta().equals("Entregada"))    // solo ventas confirmadas
+        .collect(Collectors.groupingBy(
+                registro -> registro.getNombreCategoria(),                    // agrupa por categoría
+                Collectors.summingDouble(registro -> registro.getCantidad())  // suma las cantidades
+        ));
+
+String categoriaMayor = unidadesPorCategoria.entrySet().stream()
+        .max(Map.Entry.comparingByValue())                                    // la de mayor suma
+        .map(entrada -> entrada.getKey())
+        .orElse("Sin ventas confirmadas");
+
+// 4. Clientes con devoluciones, sin repetir
+List<String> clientesConDevoluciones = registros.stream()
+        .filter(registro -> registro.getEstadoVenta().equals("Cancelada"))    // solo devueltas
+        .map(registro -> registro.getNombreCliente())                         // venta -> nombre
+        .distinct()                                                           // quita repetidos
+        .sorted()
+        .collect(Collectors.toList());
+```
+Salida con los datos de prueba:
+```
+===== ESTADISTICAS COMERCIALES =====
+Categoria con mayor volumen vendido: Bebidas - 526.0 unidades
+Clientes con devoluciones:
+```
